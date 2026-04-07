@@ -118,24 +118,37 @@ function hash(parts: string[]): string {
 export function mapRawFindings(findings: RawFinding[]): NormalizedDefect[] {
   const out: NormalizedDefect[] = [];
   for (const f of findings) {
-    const rule = CATEGORY_RULES.find((r) => r.match.test(f.rawText));
-    if (!rule) continue;
-    const severity = severityFor(f.rawText);
-    out.push({
-      category: rule.category,
-      system: rule.system,
-      component: rule.component,
-      title: rule.title,
-      description: f.rawText.trim().slice(0, 500),
-      severity,
-      urgency: urgencyFor(severity),
-      lifecycleStage: severity === "HIGH" || severity === "CRITICAL" ? "end_of_life" : "in_service",
-      estimatedCostLow: rule.costLow,
-      estimatedCostHigh: rule.costHigh,
-      confidenceScore: 0.7,
-      sourceKind: "INSPECTION_UPLOAD",
-      normalizedHash: hash([rule.category, rule.component, severity]),
-    });
+    // Match ALL rules against each finding so a single text blob (e.g., a PDF
+    // extracted as one page) can produce multiple categorized defects.
+    for (const rule of CATEGORY_RULES) {
+      if (!rule.match.test(f.rawText)) continue;
+      const context = sliceAroundMatch(f.rawText, rule.match);
+      const severity = severityFor(context);
+      out.push({
+        category: rule.category,
+        system: rule.system,
+        component: rule.component,
+        title: rule.title,
+        description: context.slice(0, 500),
+        severity,
+        urgency: urgencyFor(severity),
+        lifecycleStage:
+          severity === "HIGH" || severity === "CRITICAL" ? "end_of_life" : "in_service",
+        estimatedCostLow: rule.costLow,
+        estimatedCostHigh: rule.costHigh,
+        confidenceScore: 0.7,
+        sourceKind: "INSPECTION_UPLOAD",
+        normalizedHash: hash([rule.category, rule.component, severity]),
+      });
+    }
   }
   return out;
+}
+
+function sliceAroundMatch(text: string, re: RegExp): string {
+  const m = text.match(re);
+  if (!m || m.index == null) return text.trim();
+  const start = Math.max(0, m.index - 80);
+  const end = Math.min(text.length, m.index + 220);
+  return text.slice(start, end).trim();
 }
