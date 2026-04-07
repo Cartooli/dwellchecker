@@ -1,13 +1,14 @@
 import { ExtractionError, type ExtractionResult } from "./types";
 
 export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
-  let pdfParse: (data: Buffer) => Promise<{ text: string; numpages: number }>;
+  let extractText: (
+    data: Uint8Array,
+    options?: { mergePages?: boolean }
+  ) => Promise<{ text: string | string[]; totalPages: number }>;
+
   try {
-    // Import the inner module path to avoid pdf-parse v1.1.1's root-level
-    // debug code that tries to read a test fixture on module load.
-    // @ts-expect-error - deep import has no types
-    const mod = await import("pdf-parse/lib/pdf-parse.js");
-    pdfParse = (mod.default ?? mod) as typeof pdfParse;
+    const mod = await import("unpdf");
+    extractText = mod.extractText as typeof extractText;
   } catch (err) {
     throw new ExtractionError(
       "UNSUPPORTED_FORMAT",
@@ -15,14 +16,13 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
     );
   }
 
-  let parsed: { text: string; numpages: number };
+  let result: { text: string | string[]; totalPages: number };
   try {
-    parsed = await pdfParse(buffer);
+    result = await extractText(new Uint8Array(buffer), { mergePages: true });
   } catch (err) {
     const rawMsg = err instanceof Error ? err.message : String(err);
-    const msg = rawMsg.toLowerCase();
-    console.error("[pdf-extract] parse failed:", rawMsg, err);
-    if (msg.includes("password") || msg.includes("encrypted")) {
+    console.error("[pdf-extract] parse failed:", rawMsg);
+    if (/password|encrypted/i.test(rawMsg)) {
       throw new ExtractionError(
         "PASSWORD_PROTECTED",
         "This PDF is password-protected. Please upload an unlocked copy."
@@ -34,8 +34,7 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
     );
   }
 
-  const text = (parsed.text ?? "").trim();
-  const warnings: string[] = [];
+  const text = (Array.isArray(result.text) ? result.text.join("\n") : result.text).trim();
 
   if (!text || text.length < 50) {
     throw new ExtractionError(
@@ -47,7 +46,7 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
   return {
     text,
     method: "pdf",
-    pageCount: parsed.numpages,
-    warnings,
+    pageCount: result.totalPages,
+    warnings: [],
   };
 }
