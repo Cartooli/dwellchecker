@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dwellchecker.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://condition.homes";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -36,6 +36,7 @@ export const metadata: Metadata = {
       "Buyer-first property condition intelligence. Decode inspection reports into proceed, negotiate, or walk.",
     images: ["/opengraph-image"],
   },
+  alternates: { canonical: "https://condition.homes" },
   robots: { index: true, follow: true },
 };
 

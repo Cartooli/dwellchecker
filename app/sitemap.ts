@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://dwellchecker.vercel.app";
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://condition.homes";
   return [
     { url: base, lastModified: new Date(), priority: 1 },
     { url: `${base}/dashboard`, lastModified: new Date(), priority: 0.8 },
