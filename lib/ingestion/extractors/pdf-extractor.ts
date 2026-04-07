@@ -5,10 +5,9 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
   try {
     // Import the inner module path to avoid pdf-parse v1.1.1's root-level
     // debug code that tries to read a test fixture on module load.
-    const mod = (await import("pdf-parse/lib/pdf-parse.js")) as unknown as {
-      default: (data: Buffer) => Promise<{ text: string; numpages: number }>;
-    };
-    pdfParse = mod.default;
+    // @ts-expect-error - deep import has no types
+    const mod = await import("pdf-parse/lib/pdf-parse.js");
+    pdfParse = (mod.default ?? mod) as typeof pdfParse;
   } catch (err) {
     throw new ExtractionError(
       "UNSUPPORTED_FORMAT",
