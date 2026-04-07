@@ -1,6 +1,11 @@
+import { env } from "@/lib/env";
 import { ExtractionError, type ExtractionResult } from "./types";
+import { extractViaOcr } from "./ocr-extractor";
 
-export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
+export async function extractPdf(
+  buffer: Buffer,
+  filename = "inspection.pdf"
+): Promise<ExtractionResult> {
   let extractText: (
     data: Uint8Array,
     options?: { mergePages?: boolean }
@@ -37,6 +42,10 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
   const text = (Array.isArray(result.text) ? result.text.join("\n") : result.text).trim();
 
   if (!text || text.length < 50) {
+    if (env.ENABLE_OCR_FALLBACK) {
+      console.info("[pdf-extract] primary returned empty, falling back to OCR");
+      return extractViaOcr(buffer, filename);
+    }
     throw new ExtractionError(
       "SCANNED_PDF",
       "This PDF has no readable text. It may be a scanned image. Please upload a text-based report or paste the content."

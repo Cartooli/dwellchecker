@@ -16,6 +16,7 @@
   "dependencies": {
     "@prisma/client": "^6.1.0",
     "@vercel/blob": "^2.3.3",
+    "ai": "^6.0.151",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

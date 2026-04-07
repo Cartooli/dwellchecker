@@ -13,7 +13,7 @@ export async function extractFromBuffer(
   const name = filename.toLowerCase();
 
   if (ct.includes("pdf") || name.endsWith(".pdf")) {
-    return extractPdf(buffer);
+    return extractPdf(buffer, filename);
   }
   if (ct.includes("json") || name.endsWith(".json")) {
     return extractTextFile(buffer, "json");
