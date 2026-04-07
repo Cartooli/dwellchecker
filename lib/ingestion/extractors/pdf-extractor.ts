@@ -3,9 +3,9 @@ import { ExtractionError, type ExtractionResult } from "./types";
 export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
   let pdfParse: (data: Buffer) => Promise<{ text: string; numpages: number }>;
   try {
-    // Dynamic import so the dependency loads only on the Node runtime
-    // (pdf-parse is pure Node.js and fine on Vercel Fluid Compute).
-    const mod = (await import("pdf-parse")) as unknown as {
+    // Import the inner module path to avoid pdf-parse v1.1.1's root-level
+    // debug code that tries to read a test fixture on module load.
+    const mod = (await import("pdf-parse/lib/pdf-parse.js")) as unknown as {
       default: (data: Buffer) => Promise<{ text: string; numpages: number }>;
     };
     pdfParse = mod.default;
