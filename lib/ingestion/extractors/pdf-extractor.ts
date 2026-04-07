@@ -19,7 +19,9 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
   try {
     parsed = await pdfParse(buffer);
   } catch (err) {
-    const msg = String(err).toLowerCase();
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    const msg = rawMsg.toLowerCase();
+    console.error("[pdf-extract] parse failed:", rawMsg, err);
     if (msg.includes("password") || msg.includes("encrypted")) {
       throw new ExtractionError(
         "PASSWORD_PROTECTED",
@@ -28,7 +30,7 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
     }
     throw new ExtractionError(
       "CORRUPT_PDF",
-      "We couldn't read this PDF. It may be corrupt or in an unsupported format."
+      `We couldn't read this PDF: ${rawMsg}`
     );
   }
 
