@@ -8,6 +8,7 @@ import { parseSections } from "@/lib/ingestion/parse-sections";
 import { mapRawFindings } from "@/lib/normalization/map-raw-findings";
 import { dedupeDefects } from "@/lib/normalization/dedupe-defects";
 import { recomputePropertyConditionProfile } from "@/lib/scoring/recompute-profile";
+import { extractFromBuffer, ExtractionError } from "@/lib/ingestion/extract-text";
 
 export const maxDuration = 60;
 
@@ -61,8 +62,33 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       data: { status: "PROCESSING", stage: "EXTRACTING", startedAt: new Date(), attempts: 1 },
     });
 
-    const text = buffer.toString("utf8");
-    const raws = parseSections(text);
+    let extraction;
+    try {
+      extraction = await extractFromBuffer(buffer, file.type, file.name);
+    } catch (extractErr) {
+      if (extractErr instanceof ExtractionError) {
+        await prisma.inspection.update({
+          where: { id: inspection.id },
+          data: { extractedTextStatus: "FAILED", normalizationStatus: "SKIPPED" },
+        });
+        await prisma.ingestionJob.update({
+          where: { id: job.id },
+          data: {
+            status: "FAILED",
+            stage: "EXTRACTING",
+            errorMessage: extractErr.message,
+            finishedAt: new Date(),
+          },
+        });
+        return NextResponse.json(
+          { error: { code: extractErr.code, message: extractErr.message } },
+          { status: 422 }
+        );
+      }
+      throw extractErr;
+    }
+
+    const raws = parseSections(extraction.text);
     const normalized = dedupeDefects(mapRawFindings(raws));
 
     if (normalized.length > 0) {

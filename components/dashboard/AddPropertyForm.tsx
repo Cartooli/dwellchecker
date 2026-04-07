@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Spinner from "@/components/ui/Spinner";
 
 export default function AddPropertyForm() {
   const router = useRouter();
@@ -44,7 +45,8 @@ export default function AddPropertyForm() {
       <input name="state" required maxLength={2} placeholder="MA" />
       <label>Postal code</label>
       <input name="postalCode" required placeholder="01890" />
-      <button className="btn btn-primary" type="submit" disabled={busy}>
+      <button className="btn btn-primary" type="submit" disabled={busy} aria-busy={busy}>
+        {busy && <Spinner />}
         {busy ? "Adding…" : "Add property"}
       </button>
       {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}

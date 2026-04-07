@@ -335,6 +335,38 @@ footer {
   pointer-events: none;
   border-radius: 12px;
 }
+.notfound {
+  padding: 120px 0 80px;
+  max-width: 640px;
+}
+.notfound h1 {
+  font-size: clamp(36px, 5vw, 56px);
+  margin: 14px 0 18px;
+}
+
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spinner-rotate 600ms linear infinite;
+  vertical-align: -2px;
+  margin-right: 8px;
+}
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: spinner-pulse 1200ms ease-in-out infinite;
+    border-right-color: currentColor;
+  }
+  @keyframes spinner-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+}
+
 .ghost-tag {
   display: inline-block;
   margin-top: 8px;

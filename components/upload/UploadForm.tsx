@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Spinner from "@/components/ui/Spinner";
 
 export default function UploadForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
@@ -38,10 +39,15 @@ export default function UploadForm({ propertyId }: { propertyId: string }) {
     <form className="form" onSubmit={onSubmit}>
       <label>Inspection file (PDF, text)</label>
       <input type="file" name="file" required accept=".pdf,.txt,.json" />
-      <button className="btn btn-primary" type="submit" disabled={busy}>
+      <button className="btn btn-primary" type="submit" disabled={busy} aria-busy={busy}>
+        {busy && <Spinner />}
         {busy ? "Working…" : "Upload & analyze"}
       </button>
-      {status && <p style={{ color: "var(--text-dim)", fontSize: 13 }}>{status}</p>}
+      {status && (
+        <p style={{ color: "var(--text-dim)", fontSize: 13 }} aria-live="polite">
+          {status}
+        </p>
+      )}
       {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
     </form>
   );

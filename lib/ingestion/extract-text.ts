@@ -1,16 +1,38 @@
-// Stub extractor. Real implementation would call a PDF text extraction provider.
-// Returns a list of pseudo-paragraphs from the file URL.
-export async function extractText(fileUrl: string): Promise<string> {
-  // In production: fetch file, run OCR/PDF parser. For MVP we accept text payloads.
-  try {
-    const res = await fetch(fileUrl);
-    if (!res.ok) return "";
-    const ct = res.headers.get("content-type") ?? "";
-    if (ct.includes("text") || ct.includes("json")) {
-      return await res.text();
-    }
-    return "";
-  } catch {
-    return "";
+import { extractPdf } from "./extractors/pdf-extractor";
+import { extractTextFile } from "./extractors/text-extractor";
+import { ExtractionError, type ExtractionResult } from "./extractors/types";
+
+export { ExtractionError, type ExtractionResult };
+
+export async function extractFromBuffer(
+  buffer: Buffer,
+  contentType: string | undefined,
+  filename: string
+): Promise<ExtractionResult> {
+  const ct = (contentType ?? "").toLowerCase();
+  const name = filename.toLowerCase();
+
+  if (ct.includes("pdf") || name.endsWith(".pdf")) {
+    return extractPdf(buffer);
   }
+  if (ct.includes("json") || name.endsWith(".json")) {
+    return extractTextFile(buffer, "json");
+  }
+  if (ct.includes("csv") || name.endsWith(".csv")) {
+    return extractTextFile(buffer, "csv");
+  }
+  if (ct.includes("text") || name.endsWith(".txt")) {
+    return extractTextFile(buffer, "text");
+  }
+
+  throw new ExtractionError(
+    "UNSUPPORTED_FORMAT",
+    `Unsupported file type: ${contentType || "unknown"}. Upload a PDF or text report.`
+  );
+}
+
+// Legacy helper kept for compatibility with the old background worker route.
+// Real extraction now happens inline in the upload route using `extractFromBuffer`.
+export async function extractText(_fileUrl: string): Promise<string> {
+  return "";
 }
