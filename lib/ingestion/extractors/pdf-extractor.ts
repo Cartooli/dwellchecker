@@ -30,7 +30,7 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
     }
     throw new ExtractionError(
       "CORRUPT_PDF",
-      `We couldn't read this PDF: ${rawMsg}`
+      "We couldn't read this PDF. It may be corrupt or in an unsupported format."
     );
   }
 
