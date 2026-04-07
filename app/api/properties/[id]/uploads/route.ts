@@ -4,6 +4,12 @@ import { storeInspectionFile } from "@/lib/storage/blob";
 import { createIngestionJob } from "@/lib/ingestion/create-job";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logging/logger";
+import { parseSections } from "@/lib/ingestion/parse-sections";
+import { mapRawFindings } from "@/lib/normalization/map-raw-findings";
+import { dedupeDefects } from "@/lib/normalization/dedupe-defects";
+import { recomputePropertyConditionProfile } from "@/lib/scoring/recompute-profile";
+
+export const maxDuration = 60;
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -45,17 +51,72 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     fileUrl: blob.url,
   });
 
-  // Trigger processing in the background (fire-and-forget).
-  const baseUrl = env.NEXT_PUBLIC_APP_URL;
-  fetch(`${baseUrl}/api/ingestion/jobs/${job.id}/process`, {
-    method: "POST",
-    headers: { "x-internal-secret": env.INTERNAL_JOB_SECRET },
-  }).catch(() => {});
+  // Inline processing — parse the in-memory buffer directly so we don't need
+  // to re-fetch the (private) blob and don't rely on fire-and-forget background
+  // fetches which Vercel serverless functions kill at request end.
+  let defectCount = 0;
+  try {
+    await prisma.ingestionJob.update({
+      where: { id: job.id },
+      data: { status: "PROCESSING", stage: "EXTRACTING", startedAt: new Date(), attempts: 1 },
+    });
+
+    const text = buffer.toString("utf8");
+    const raws = parseSections(text);
+    const normalized = dedupeDefects(mapRawFindings(raws));
+
+    if (normalized.length > 0) {
+      await prisma.$transaction(
+        normalized.map((d) =>
+          prisma.defect.create({
+            data: {
+              propertyId,
+              inspectionId: inspection.id,
+              category: d.category,
+              system: d.system,
+              component: d.component,
+              title: d.title,
+              description: d.description,
+              severity: d.severity,
+              urgency: d.urgency,
+              lifecycleStage: d.lifecycleStage,
+              estimatedCostLow: d.estimatedCostLow,
+              estimatedCostHigh: d.estimatedCostHigh,
+              confidenceScore: d.confidenceScore,
+              sourceKind: d.sourceKind,
+              normalizedHash: d.normalizedHash,
+            },
+          })
+        )
+      );
+    }
+
+    await prisma.inspection.update({
+      where: { id: inspection.id },
+      data: { extractedTextStatus: "DONE", normalizationStatus: "DONE" },
+    });
+
+    await recomputePropertyConditionProfile(propertyId);
+
+    await prisma.ingestionJob.update({
+      where: { id: job.id },
+      data: { status: "DONE", stage: "DONE", finishedAt: new Date() },
+    });
+
+    defectCount = normalized.length;
+  } catch (ingestErr) {
+    logger.error("inline-ingestion-failed", { jobId: job.id, err: String(ingestErr) });
+    await prisma.ingestionJob.update({
+      where: { id: job.id },
+      data: { status: "FAILED", errorMessage: String(ingestErr), finishedAt: new Date() },
+    });
+  }
 
     return NextResponse.json({
       uploadUrl: blob.url,
       jobId: job.id,
       inspectionId: inspection.id,
+      defectCount,
     });
   } catch (err) {
     logger.error("upload-failed", { err: String(err), stack: err instanceof Error ? err.stack : undefined });
