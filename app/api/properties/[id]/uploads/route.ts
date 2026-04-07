@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db/client";
 import { storeInspectionFile } from "@/lib/storage/blob";
 import { createIngestionJob } from "@/lib/ingestion/create-job";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logging/logger";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
   const { id: propertyId } = await ctx.params;
 
   const property = await prisma.property.findUnique({ where: { id: propertyId } });
@@ -50,9 +52,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     headers: { "x-internal-secret": env.INTERNAL_JOB_SECRET },
   }).catch(() => {});
 
-  return NextResponse.json({
-    uploadUrl: blob.url,
-    jobId: job.id,
-    inspectionId: inspection.id,
-  });
+    return NextResponse.json({
+      uploadUrl: blob.url,
+      jobId: job.id,
+      inspectionId: inspection.id,
+    });
+  } catch (err) {
+    logger.error("upload-failed", { err: String(err), stack: err instanceof Error ? err.stack : undefined });
+    return NextResponse.json(
+      { error: { code: "UPLOAD_FAILED", message: String(err) } },
+      { status: 500 }
+    );
+  }
 }
