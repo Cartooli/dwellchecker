@@ -7,10 +7,11 @@ export async function storeInspectionFile(
   body: Buffer | Blob | ReadableStream
 ) {
   const key = `inspections/${propertyId}/${Date.now()}-${filename}`;
+  // Private blob store — omit access param so SDK uses store-default
   const result = await put(key, body, {
-    access: "public",
     token: env.BLOB_READ_WRITE_TOKEN,
     addRandomSuffix: false,
-  });
+    allowOverwrite: true,
+  } as never);
   return result;
 }
