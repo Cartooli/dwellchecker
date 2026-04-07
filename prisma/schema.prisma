@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Recommendation {
+  PROCEED
+  PROCEED_WITH_CONDITIONS
+  NEGOTIATE
+  WALK
+  INSUFFICIENT_DATA
+}
+
+enum Severity {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum Urgency {
+  MONITOR
+  PLAN
+  SOON
+  IMMEDIATE
+}
+
+model Property {
+  id             String   @id @default(cuid())
+  street1        String
+  street2        String?
+  city           String
+  state          String
+  postalCode     String
+  county         String?
+  latitude       Float?
+  longitude      Float?
+  parcelId       String?
+  yearBuilt      Int?
+  livingAreaSqft Int?
+  lotSizeSqft    Int?
+  bedrooms       Int?
+  bathrooms      Float?
+  propertyType   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  profiles    PropertyConditionProfile[]
+  inspections Inspection[]
+  defects     Defect[]
+  riskFlags   RiskFlag[]
+  auditEvents AuditEvent[]
+}
+
+model PropertyConditionProfile {
+  id                       String         @id @default(cuid())
+  propertyId               String
+  currentScore             Int?
+  recommendation           Recommendation @default(INSUFFICIENT_DATA)
+  recommendationConfidence Float?
+  summaryJson              Json?
+  profileVersion           Int            @default(1)
+  lastRecomputedAt         DateTime?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model Inspection {
+  id                  String    @id @default(cuid())
+  propertyId          String
+  sourceType          String
+  sourceVendor        String?
+  inspectionDate      DateTime?
+  inspectorName       String?
+  inspectorCompany    String?
+  rawReportUrl        String?
+  extractedTextStatus String    @default("PENDING")
+  normalizationStatus String    @default("PENDING")
+  summaryScore        Int?
+  metadataJson        Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  property Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  defects  Defect[]
+  jobs     IngestionJob[]
+
+  @@index([propertyId])
+}
+
+model Defect {
+  id                  String   @id @default(cuid())
+  propertyId          String
+  inspectionId        String?
+  category            String
+  system              String?
+  component           String?
+  title               String
+  description         String
+  severity            Severity
+  urgency             Urgency?
+  lifecycleStage      String?
+  estimatedCostLow    Int?
+  estimatedCostHigh   Int?
+  confidenceScore     Float?
+  sourceKind          String
+  sourceReferenceJson Json?
+  normalizedHash      String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  property   Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  inspection Inspection? @relation(fields: [inspectionId], references: [id], onDelete: SetNull)
+  riskFlags  RiskFlag[]
+
+  @@index([propertyId])
+  @@index([inspectionId])
+}
+
+model RiskFlag {
+  id              String   @id @default(cuid())
+  propertyId      String
+  defectId        String?
+  flagCode        String
+  title           String
+  explanation     String
+  severity        Severity
+  confidenceScore Float?
+  origin          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  defect   Defect?  @relation(fields: [defectId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId])
+  @@index([defectId])
+}
+
+model IngestionJob {
+  id           String    @id @default(cuid())
+  propertyId   String
+  inspectionId String?
+  fileUrl      String?
+  status       String
+  stage        String?
+  errorMessage String?
+  attempts     Int       @default(0)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  inspection Inspection? @relation(fields: [inspectionId], references: [id], onDelete: SetNull)
+
+  @@index([inspectionId])
+}
+
+model AuditEvent {
+  id           String   @id @default(cuid())
+  propertyId   String?
+  inspectionId String?
+  actorType    String
+  actorId      String?
+  eventType    String
+  payloadJson  Json?
+  createdAt    DateTime @default(now())
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId])
+}
