@@ -1,18 +1,24 @@
 import { prisma } from "@/lib/db/client";
+import { logger } from "@/lib/logging/logger";
 import Link from "next/link";
 import AddPropertyForm from "@/components/dashboard/AddPropertyForm";
 
 export const dynamic = "force-dynamic";
 
+type PropertyWithProfiles = Awaited<ReturnType<typeof prisma.property.findMany<{
+  include: { profiles: { orderBy: { createdAt: "desc" }; take: 1 } };
+}>>>;
+
 export default async function DashboardPage() {
-  let properties: Awaited<ReturnType<typeof prisma.property.findMany>> = [];
+  let properties: PropertyWithProfiles = [];
   try {
     properties = await prisma.property.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: { profiles: { orderBy: { createdAt: "desc" }, take: 1 } } as never,
+      include: { profiles: { orderBy: { createdAt: "desc" }, take: 1 } },
     });
-  } catch {
+  } catch (err) {
+    logger.error("dashboard-query-failed", { err: err instanceof Error ? err.message : String(err) });
     properties = [];
   }
 
@@ -43,7 +49,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="defect-list">
-              {properties.map((p: any) => {
+              {properties.map((p) => {
                 const profile = p.profiles?.[0];
                 return (
                   <Link key={p.id} href={`/dashboard/properties/${p.id}`} className="defect">

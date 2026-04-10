@@ -23,14 +23,21 @@ export default function UploadForm({ propertyId }: { propertyId: string }) {
       });
       if (!res.ok) throw new Error((await res.json()).error?.message ?? "Upload failed");
       const json = await res.json();
-      setStatus(`Processing job ${json.jobId}…`);
-      // Wait briefly for background processing then refresh.
+
+      if (json.processingFailed) {
+        setError("File uploaded but processing failed. Try re-uploading.");
+        setBusy(false);
+        return;
+      }
+
+      setStatus(`Done — ${json.defectCount} defect(s) found. Redirecting…`);
+      // Brief delay so the user sees the result before navigating
       setTimeout(() => {
         router.push(`/dashboard/properties/${propertyId}`);
         router.refresh();
-      }, 2500);
+      }, 1500);
     } catch (err) {
-      setError(String(err));
+      setError(err instanceof Error ? err.message : "Upload failed");
       setBusy(false);
     }
   }
@@ -43,7 +50,7 @@ export default function UploadForm({ propertyId }: { propertyId: string }) {
         {busy && <Spinner />}
         {busy ? "Working…" : "Upload & analyze"}
       </button>
-      {status && (
+      {status && !error && (
         <p style={{ color: "var(--text-dim)", fontSize: 13 }} aria-live="polite">
           {status}
         </p>

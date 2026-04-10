@@ -41,7 +41,7 @@ export async function extractPdf(
 
   const text = (Array.isArray(result.text) ? result.text.join("\n") : result.text).trim();
 
-  if (!text || text.length < 50) {
+  if (!text || text.trim().length < 50) {
     if (env.ENABLE_OCR_FALLBACK) {
       console.info("[pdf-extract] primary returned empty, falling back to OCR");
       return extractViaOcr(buffer, filename);

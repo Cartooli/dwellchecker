@@ -1,4 +1,5 @@
 import { getPropertyDetail } from "@/lib/domain/property";
+import { logger } from "@/lib/logging/logger";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -28,7 +29,8 @@ export default async function PropertyPage({
   let property;
   try {
     property = await getPropertyDetail(propertyId);
-  } catch {
+  } catch (err) {
+    logger.error("property-detail-failed", { propertyId, err: err instanceof Error ? err.message : String(err) });
     property = null;
   }
   if (!property) notFound();
@@ -36,11 +38,10 @@ export default async function PropertyPage({
   const profile = property.profiles[0];
   const score = profile?.currentScore ?? 0;
   const recommendation = profile?.recommendation ?? "INSUFFICIENT_DATA";
-  const summary = (profile?.summaryJson as { summary?: string } | null)?.summary;
-  const capLow =
-    (profile?.summaryJson as { capitalExposureLow?: number } | null)?.capitalExposureLow ?? 0;
-  const capHigh =
-    (profile?.summaryJson as { capitalExposureHigh?: number } | null)?.capitalExposureHigh ?? 0;
+  const summaryData = profile?.summaryJson as Record<string, unknown> | null;
+  const summary = typeof summaryData?.summary === "string" ? summaryData.summary : undefined;
+  const capLow = typeof summaryData?.capitalExposureLow === "number" ? summaryData.capitalExposureLow : 0;
+  const capHigh = typeof summaryData?.capitalExposureHigh === "number" ? summaryData.capitalExposureHigh : 0;
 
   return (
     <main className="container">
@@ -50,7 +51,7 @@ export default async function PropertyPage({
       <p className="page-sub">Condition profile · {property.inspections.length} inspection(s) on file</p>
 
       <div className="banner">
-        <div className="score-ring" style={{ ["--p" as never]: score }}>
+        <div className="score-ring" style={{ "--p": score } as React.CSSProperties}>
           <div className="score-ring-inner">
             <div className="num">{score}</div>
             <div className="lbl">Score</div>
