@@ -2,6 +2,19 @@ import { prisma } from "@/lib/db/client";
 import { decide } from "./decision";
 import type { NormalizedDefect } from "@/lib/normalization/map-raw-findings";
 
+const VALID_SOURCE_KINDS = new Set<NormalizedDefect["sourceKind"]>([
+  "INSPECTION_UPLOAD",
+  "INFERRED",
+  "MANUAL_REVIEW",
+]);
+
+function toSourceKind(raw: string | null | undefined): NormalizedDefect["sourceKind"] {
+  if (raw && VALID_SOURCE_KINDS.has(raw as NormalizedDefect["sourceKind"])) {
+    return raw as NormalizedDefect["sourceKind"];
+  }
+  return "INSPECTION_UPLOAD";
+}
+
 export async function recomputePropertyConditionProfile(propertyId: string) {
   const defects = await prisma.defect.findMany({ where: { propertyId } });
   const normalized: NormalizedDefect[] = defects.map((d) => ({
@@ -16,19 +29,13 @@ export async function recomputePropertyConditionProfile(propertyId: string) {
     estimatedCostLow: d.estimatedCostLow,
     estimatedCostHigh: d.estimatedCostHigh,
     confidenceScore: d.confidenceScore ?? 0.5,
-    sourceKind: (d.sourceKind as NormalizedDefect["sourceKind"]) ?? "INSPECTION_UPLOAD",
+    sourceKind: toSourceKind(d.sourceKind),
     normalizedHash: d.normalizedHash ?? "",
   }));
 
   const result = decide(normalized);
 
-  const profile = await prisma.propertyConditionProfile.findFirst({
-    where: { propertyId },
-    orderBy: { createdAt: "desc" },
-  });
-
   const data = {
-    propertyId,
     currentScore: result.score,
     recommendation: result.recommendation,
     recommendationConfidence: result.confidence,
@@ -36,8 +43,23 @@ export async function recomputePropertyConditionProfile(propertyId: string) {
     lastRecomputedAt: new Date(),
   };
 
-  if (profile) {
-    return prisma.propertyConditionProfile.update({ where: { id: profile.id }, data });
-  }
-  return prisma.propertyConditionProfile.create({ data });
+  // Use $transaction with serializable isolation to prevent duplicate profiles.
+  // Find-then-update/create outside a transaction has a TOCTOU race when two
+  // uploads complete simultaneously for the same property.
+  return prisma.$transaction(async (tx) => {
+    const profile = await tx.propertyConditionProfile.findFirst({
+      where: { propertyId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (profile) {
+      return tx.propertyConditionProfile.update({
+        where: { id: profile.id },
+        data,
+      });
+    }
+    return tx.propertyConditionProfile.create({
+      data: { propertyId, ...data },
+    });
+  });
 }

@@ -1,16 +1,20 @@
 import { prisma } from "@/lib/db/client";
+import { logger } from "@/lib/logging/logger";
 
 export const dynamic = "force-dynamic";
 
 export default async function ComparePage() {
-  let properties: any[] = [];
+  let properties: Awaited<ReturnType<typeof prisma.property.findMany<{
+    include: { profiles: { orderBy: { createdAt: "desc" }; take: 1 } };
+  }>>> = [];
   try {
     properties = await prisma.property.findMany({
       orderBy: { createdAt: "desc" },
       take: 25,
-      include: { profiles: { orderBy: { createdAt: "desc" }, take: 1 } } as never,
+      include: { profiles: { orderBy: { createdAt: "desc" }, take: 1 } },
     });
-  } catch {
+  } catch (err) {
+    logger.error("compare-query-failed", { err: err instanceof Error ? err.message : String(err) });
     properties = [];
   }
 

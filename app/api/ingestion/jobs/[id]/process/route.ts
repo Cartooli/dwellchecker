@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { extractText } from "@/lib/ingestion/extract-text";
-import { parseSections } from "@/lib/ingestion/parse-sections";
-import { mapRawFindings } from "@/lib/normalization/map-raw-findings";
-import { dedupeDefects } from "@/lib/normalization/dedupe-defects";
-import { recomputePropertyConditionProfile } from "@/lib/scoring/recompute-profile";
+import { runNormalizationPipeline } from "@/lib/ingestion/process-pipeline";
 import { logger } from "@/lib/logging/logger";
 
 export const maxDuration = 60;
@@ -31,42 +28,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const text = await extractText(job.fileUrl);
 
-    await prisma.ingestionJob.update({ where: { id: job.id }, data: { stage: "PARSING" } });
-    const raws = parseSections(text);
-
     await prisma.ingestionJob.update({ where: { id: job.id }, data: { stage: "NORMALIZING" } });
-    const normalized = dedupeDefects(mapRawFindings(raws));
 
-    await prisma.$transaction(
-      normalized.map((d) =>
-        prisma.defect.create({
-          data: {
-            propertyId: job.propertyId,
-            inspectionId: job.inspectionId,
-            category: d.category,
-            system: d.system,
-            component: d.component,
-            title: d.title,
-            description: d.description,
-            severity: d.severity,
-            urgency: d.urgency,
-            lifecycleStage: d.lifecycleStage,
-            estimatedCostLow: d.estimatedCostLow,
-            estimatedCostHigh: d.estimatedCostHigh,
-            confidenceScore: d.confidenceScore,
-            sourceKind: d.sourceKind,
-            normalizedHash: d.normalizedHash,
-          },
-        })
-      )
-    );
-
-    await prisma.inspection.update({
-      where: { id: job.inspectionId },
-      data: { extractedTextStatus: "DONE", normalizationStatus: "DONE" },
+    const defectCount = await runNormalizationPipeline({
+      text,
+      propertyId: job.propertyId,
+      inspectionId: job.inspectionId,
     });
-
-    await recomputePropertyConditionProfile(job.propertyId);
 
     await prisma.ingestionJob.update({
       where: { id: job.id },
@@ -79,17 +47,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         inspectionId: job.inspectionId,
         actorType: "SYSTEM",
         eventType: "INGESTION_COMPLETE",
-        payloadJson: { jobId: job.id, defectCount: normalized.length },
+        payloadJson: { jobId: job.id, defectCount },
       },
     });
 
-    return NextResponse.json({ jobId: job.id, status: "DONE", defects: normalized.length });
+    return NextResponse.json({ jobId: job.id, status: "DONE", defects: defectCount });
   } catch (err) {
-    logger.error("ingestion-failed", { jobId: job.id, err: String(err) });
+    const safeMsg = err instanceof Error ? err.message.slice(0, 200) : "An unexpected error occurred.";
+    logger.error("ingestion-failed", { jobId: job.id, err: safeMsg, stack: err instanceof Error ? err.stack : undefined });
     await prisma.ingestionJob.update({
       where: { id: job.id },
-      data: { status: "FAILED", errorMessage: String(err), finishedAt: new Date() },
+      data: { status: "FAILED", errorMessage: safeMsg, finishedAt: new Date() },
     });
-    return NextResponse.json({ error: { code: "INGESTION_FAILED", message: String(err) } }, { status: 500 });
+    return NextResponse.json({ error: { code: "INGESTION_FAILED", message: "Ingestion failed. Check job status for details." } }, { status: 500 });
   }
 }

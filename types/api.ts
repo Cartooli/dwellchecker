@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 export const PropertyUpsertInput = z.object({
-  street1: z.string().min(1),
-  street2: z.string().optional(),
-  city: z.string().min(1),
+  street1: z.string().min(1).max(200),
+  street2: z.string().max(200).optional(),
+  city: z.string().min(1).max(100),
   state: z.string().min(2).max(2),
-  postalCode: z.string().min(3),
-  yearBuilt: z.number().int().optional(),
+  postalCode: z.string().min(3).max(20),
+  yearBuilt: z.number().int().min(1600).max(new Date().getFullYear() + 5).optional(),
 });
 export type PropertyUpsertInput = z.infer<typeof PropertyUpsertInput>;
 
