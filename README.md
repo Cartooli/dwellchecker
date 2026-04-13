@@ -15,12 +15,31 @@ Buyer-first property condition intelligence. Score risk, interpret inspection re
 ```bash
 npm install
 cp .env.example .env
-# fill in DATABASE_URL, DIRECT_URL, BLOB_READ_WRITE_TOKEN
-npx prisma db push
+```
+
+Fill in:
+
+- **Clerk** — [Create an application](https://dashboard.clerk.com/) and add `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (required for `npm run dev` / `npm run build`).
+- **Database** — `DATABASE_URL` and `POSTGRES_URL_NON_POOLING` (matches `prisma/schema.prisma` `directUrl`; Neon on Vercel sets these).
+- **Blob** — `BLOB_READ_WRITE_TOKEN` for inspection uploads.
+
+Apply the schema (prefer migrations in production):
+
+```bash
+npx prisma migrate deploy
+# or local dev: npx prisma migrate dev
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. Sign in to use the dashboard; property data is scoped to the signed-in user, with optional read-only sharing by email.
+
+### Legacy rows (existing databases)
+
+If you already have `Property` rows from before ownership was added, the migration sets `ownerUserId` to `legacy-unassigned`. Replace that with your real Clerk user id for the designated internal account (one-time SQL), for example:
+
+```sql
+UPDATE "Property" SET "ownerUserId" = 'user_xxxxxxxx' WHERE "ownerUserId" = 'legacy-unassigned';
+```
 
 ## Deploy to Vercel
 
@@ -61,18 +80,20 @@ spec bundle.
 
 ## API surface
 
-- `POST /api/properties/upsert` — create/find a property by address
-- `GET  /api/properties/:id` — fetch property + profile + defects
-- `POST /api/properties/:id/preanalyze` — recompute the profile
-- `POST /api/properties/:id/uploads` — upload an inspection (multipart)
-- `GET  /api/ingestion/jobs/:id` — poll ingestion status
-- `POST /api/ingestion/jobs/:id/process` — internal worker (secret-gated)
+All routes below require a signed-in session except the internal worker.
+
+- `POST /api/properties/upsert` — create/find a property **for the current user** by address (per-owner dedupe)
+- `GET  /api/properties/:id` — fetch property + profile + defects if the user **owns** the property or has **read-only share** access
+- `POST /api/properties/:id/shares` — owner only: invite read-only access by email (`{ "email": "..." }`)
+- `POST /api/properties/:id/preanalyze` — **owner** only: recompute the profile
+- `POST /api/properties/:id/uploads` — **owner** only: upload an inspection (multipart)
+- `GET  /api/ingestion/jobs/:id` — poll job status if you can read the related property
+- `POST /api/ingestion/jobs/:id/process` — internal worker (secret-gated, no session)
 
 All boundaries validate with Zod and return a consistent error envelope.
 
 ## Roadmap
 
 - Real PDF text extraction (currently a stub that handles text/json bodies)
-- Auth (Clerk via Vercel Marketplace)
 - Operator review queue for low-confidence normalizations
 - Multi-property comparison with weighted dimensions

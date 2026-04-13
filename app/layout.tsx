@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Providers } from "./providers";
+import NavAuth from "@/components/layout/NavAuth";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://condition.homes";
 
@@ -51,25 +53,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <header className="nav">
-          <div className="container nav-inner">
-            <a href="/" className="brand">
-              <span className="brand-mark">D</span>
-              <span>dwellchecker</span>
-            </a>
-            <nav>
-              <a className="link" href="/dashboard">Dashboard</a>
-              <a className="link" href="/dashboard/compare">Compare</a>
-              <a className="link" href="/dashboard">Get started</a>
-            </nav>
-          </div>
-        </header>
-        {children}
-        <footer>
-          <div className="container">
-            © {new Date().getFullYear()} Dwellchecker · The interpretation layer for property condition.
-          </div>
-        </footer>
+        <Providers>
+          <header className="nav">
+            <div className="container nav-inner">
+              <a href="/" className="brand">
+                <span className="brand-mark">D</span>
+                <span>dwellchecker</span>
+              </a>
+              <nav style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <a className="link" href="/dashboard">
+                  Dashboard
+                </a>
+                <a className="link" href="/dashboard/compare">
+                  Compare
+                </a>
+                <a className="link" href="/dashboard">
+                  Get started
+                </a>
+                <NavAuth />
+              </nav>
+            </div>
+          </header>
+          {children}
+          <footer>
+            <div className="container">
+              © {new Date().getFullYear()} Dwellchecker · The interpretation layer for property condition.
+            </div>
+          </footer>
+        </Providers>
       </body>
     </html>
   );

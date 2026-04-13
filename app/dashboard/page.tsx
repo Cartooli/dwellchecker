@@ -1,22 +1,20 @@
-import { prisma } from "@/lib/db/client";
-import { logger } from "@/lib/logging/logger";
+import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import AddPropertyForm from "@/components/dashboard/AddPropertyForm";
+import { listPropertiesForViewer } from "@/lib/domain/property";
+import { logger } from "@/lib/logging/logger";
 
 export const dynamic = "force-dynamic";
 
-type PropertyWithProfiles = Awaited<ReturnType<typeof prisma.property.findMany<{
-  include: { profiles: { orderBy: { createdAt: "desc" }; take: 1 } };
-}>>>;
-
 export default async function DashboardPage() {
-  let properties: PropertyWithProfiles = [];
+  const { userId } = await auth();
+  if (!userId) {
+    return null;
+  }
+
+  let properties: Awaited<ReturnType<typeof listPropertiesForViewer>> = [];
   try {
-    properties = await prisma.property.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include: { profiles: { orderBy: { createdAt: "desc" }, take: 1 } },
-    });
+    properties = await listPropertiesForViewer(userId);
   } catch (err) {
     logger.error("dashboard-query-failed", { err: err instanceof Error ? err.message : String(err) });
     properties = [];
@@ -51,10 +49,16 @@ export default async function DashboardPage() {
             <div className="defect-list">
               {properties.map((p) => {
                 const profile = p.profiles?.[0];
+                const shared = p.ownerUserId !== userId;
                 return (
                   <Link key={p.id} href={`/dashboard/properties/${p.id}`} className="defect">
                     <h4>
                       {p.street1}, {p.city}, {p.state} {p.postalCode}
+                      {shared && (
+                        <span className="ghost-tag" style={{ marginLeft: 8 }}>
+                          Shared with you
+                        </span>
+                      )}
                     </h4>
                     <p>
                       {profile?.recommendation ?? "INSUFFICIENT_DATA"} · score{" "}

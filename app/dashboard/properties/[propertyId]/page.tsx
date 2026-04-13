@@ -1,7 +1,11 @@
-import { getPropertyDetail } from "@/lib/domain/property";
+import type { CSSProperties } from "react";
+import { auth } from "@clerk/nextjs/server";
+import { getPropertyDetailForViewer } from "@/lib/domain/property";
+import { userCanWriteProperty } from "@/lib/auth/property-access";
 import { logger } from "@/lib/logging/logger";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import PropertyInviteForm from "@/components/dashboard/PropertyInviteForm";
 
 export const dynamic = "force-dynamic";
 
@@ -25,15 +29,26 @@ export default async function PropertyPage({
 }: {
   params: Promise<{ propertyId: string }>;
 }) {
+  const { userId } = await auth();
+  if (!userId) {
+    notFound();
+  }
+
   const { propertyId } = await params;
   let property;
   try {
-    property = await getPropertyDetail(propertyId);
+    property = await getPropertyDetailForViewer(propertyId, userId);
   } catch (err) {
-    logger.error("property-detail-failed", { propertyId, err: err instanceof Error ? err.message : String(err) });
+    logger.error("property-detail-failed", {
+      propertyId,
+      err: err instanceof Error ? err.message : String(err),
+    });
     property = null;
   }
   if (!property) notFound();
+
+  const canWrite = await userCanWriteProperty(userId, property.id);
+  const readOnlyBorrowed = !canWrite;
 
   const profile = property.profiles[0];
   const score = profile?.currentScore ?? 0;
@@ -49,9 +64,14 @@ export default async function PropertyPage({
         {property.street1}, {property.city}, {property.state} {property.postalCode}
       </h1>
       <p className="page-sub">Condition profile · {property.inspections.length} inspection(s) on file</p>
+      {readOnlyBorrowed && (
+        <p className="page-sub" style={{ color: "var(--text-dim)" }}>
+          Read-only — shared with you. Uploading and rescoring are available to the owner.
+        </p>
+      )}
 
       <div className="banner">
-        <div className="score-ring" style={{ "--p": score } as React.CSSProperties}>
+        <div className="score-ring" style={{ "--p": score } as CSSProperties}>
           <div className="score-ring-inner">
             <div className="num">{score}</div>
             <div className="lbl">Score</div>
@@ -69,10 +89,14 @@ export default async function PropertyPage({
             </div>
           )}
         </div>
-        <Link href={`/dashboard/properties/${property.id}/upload`} className="btn btn-primary">
-          Upload report
-        </Link>
+        {canWrite ? (
+          <Link href={`/dashboard/properties/${property.id}/upload`} className="btn btn-primary">
+            Upload report
+          </Link>
+        ) : null}
       </div>
+
+      {canWrite ? <PropertyInviteForm propertyId={property.id} /> : null}
 
       <div className="section-title">Defects</div>
       {property.defects.length === 0 ? (

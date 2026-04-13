@@ -1,7 +1,9 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { storeInspectionFile } from "@/lib/storage/blob";
 import { createIngestionJob } from "@/lib/ingestion/create-job";
+import { userCanWriteProperty } from "@/lib/auth/property-access";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logging/logger";
 import { runNormalizationPipeline } from "@/lib/ingestion/process-pipeline";
@@ -43,11 +45,22 @@ function safeErrorMessage(err: unknown): string {
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: { code: "UNAUTHORIZED", message: "Sign in required" } },
+      { status: 401 }
+    );
+  }
+
   const { id: propertyId } = await ctx.params;
 
   const property = await prisma.property.findUnique({ where: { id: propertyId } });
   if (!property) {
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "Property not found" } }, { status: 404 });
+  }
+  if (!(await userCanWriteProperty(userId, propertyId))) {
+    return NextResponse.json({ error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
   }
 
   const formData = await req.formData().catch(() => null);

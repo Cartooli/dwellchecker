@@ -32,6 +32,7 @@ enum Urgency {
 
 model Property {
   id             String   @id @default(cuid())
+  ownerUserId    String
   street1        String
   street2        String?
   city           String
@@ -55,8 +56,25 @@ model Property {
   defects     Defect[]
   riskFlags   RiskFlag[]
   auditEvents AuditEvent[]
+  shares      PropertyShare[]
 
-  @@unique([street1, city, state, postalCode], name: "address_unique")
+  @@index([ownerUserId])
+  @@unique([ownerUserId, street1, city, state, postalCode], name: "address_unique_per_owner")
+}
+
+model PropertyShare {
+  id            String    @id @default(cuid())
+  propertyId    String
+  invitedEmail  String
+  inviteeUserId String?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, invitedEmail])
+  @@index([inviteeUserId])
+  @@index([invitedEmail])
 }
 
 model PropertyConditionProfile {
