@@ -9,3 +9,4 @@ node_modules
 prisma/migrations/dev.db*
 .gstack/
 simulation-results/
+.clerk/

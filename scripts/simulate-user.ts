@@ -40,7 +40,10 @@ function logIssue(i: Issue) {
   console.log(`${tag} [${i.phase}] ${i.severity}: ${i.description}`);
 }
 
-/** Default dev server port for this repo when multiple apps use :3000. Override with `--base-url`. */
+/**
+ * Dev server URL for HTTP checks. `next dev` defaults to :3000; if another app binds :3000,
+ * run dwellchecker on another port (e.g. `next dev -p 3020`) and pass `--base-url` or set this.
+ */
 const DEFAULT_BASE_URL = "http://localhost:3020";
 
 function parseArgs(argv: string[]) {

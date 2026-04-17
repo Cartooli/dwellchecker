@@ -1,6 +1,6 @@
 # dwellchecker — Simulated User Journey Plan
-Generated: 2026-04-16T15:46:22Z  
-Stack: Next.js 15 (App Router) · TypeScript · Prisma · PostgreSQL · Clerk · Vercel Blob  
+Generated: 2026-04-17T00:00:00.000Z  
+Stack: Next.js 15 App Router, TypeScript, Prisma + PostgreSQL, Clerk auth, Vercel Blob  
 Trigger: `/simulate-user-e2e-test`
 
 ---
@@ -8,82 +8,88 @@ Trigger: `/simulate-user-e2e-test`
 ## Persona
 
 **Name:** Priya Natarajan  
-**Role:** Senior program manager at a mid-size biotech (remote-first); first-time buyer in a hot market  
-**Email (sim):** `priya.natarajan.sim+20260416@example.com`  
+**Role:** Senior product designer at a fintech, first-time homebuyer in Greater Boston  
+**Email (sim):** `priya.natarajan.sim+[timestamp]@example.com`  
 **Location:** Somerville, MA, USA
 
 **Background:**
-- Lost a bid last year after waiving inspection; now refuses to move without a clear condition read on every finalist property.
-- Reads inspection PDFs at 11pm and hates agent-speak; wants one plain verdict: proceed, negotiate, or walk.
-- Uses Google SSO everywhere when offered; impatient if auth redirects loop or dashboards stay empty.
-- Keeps a spreadsheet of addresses; will paste long Zillow notes into any “notes” field if the app has one.
+- Under contract on a 1920s two-family and drowning in inspection PDFs and agent optimism.
+- Wants a single score and a plain-English proceed / negotiate / walk signal before renegotiation.
+- Comfortable with SaaS; expects sign-in before anything sensitive; impatient with vague errors.
+- Has been burned by duplicate CRM entries at work—expects address deduplication to “just work.”
 
 **Use case / goal:**  
-Priya wants to add each serious contender by address, upload the seller’s inspection report, and get a scored recommendation she can compare side-by-side before making an offer. Success means fewer surprises at closing and a defensible number for negotiation. She will churn if uploads silently fail or scores change without explanation.
+Add her candidate property by address, see condition profile and recommendation, and eventually upload an inspection report so the app can normalize defects and surface capital exposure—without becoming a PDF engineer.
 
 **Personality in simulation:**
-- Meticulous: re-reads validation errors and tries edge-case addresses (wrong ZIP, duplicate add).
-- Impatient: abandons flows that show a blank screen for more than a few seconds.
-- Files issues when copy says “My Application” or when API errors are raw JSON with no human line.
+- Meticulous: tests long pasted street lines and invalid state abbreviations.
+- Skeptical of APIs: notices if anonymous calls leak data or return 500 instead of 401.
+- Will file a feature request if Clerk blocks headless signup—expects that gap to be explicit.
 
 ---
 
 ## App Overview (discovered)
 
-**What it does:** Buyer-first property condition intelligence: properties keyed by address per user, inspection ingestion, defects, risk, and a `PropertyConditionProfile` with recommendation and score.  
-**Auth model:** **Clerk** — hosted sign-in/sign-up (`/sign-in`, `/sign-up`); `clerkMiddleware` protects all non-public routes. Public: `/`, `/sign-in`, `/sign-up`, internal `POST /api/ingestion/jobs/:id/process`.  
-**Key entities:** `Property`, `PropertyConditionProfile`, `Inspection`, `Defect`, `RiskFlag`, `IngestionJob`, `PropertyShare`, `AuditEvent`.  
-**Core job-to-be-done:** Add a property by address → upload inspection → poll ingestion → read profile score and recommendation → optionally compare multiple properties.
+**What it does:** Buyer-first property condition intelligence—properties, inspections, ingestion jobs, condition profiles with proceed/negotiate/walk-style recommendations.  
+**Auth model:** Clerk (`@clerk/nextjs`) — `clerkMiddleware` with public routes: `/`, `/sign-in`, `/sign-up`, internal worker `POST /api/ingestion/jobs/:id/process`. All other UI and API require session.  
+**Key entities:** `Property`, `PropertyConditionProfile`, `Inspection`, `Defect`, `RiskFlag`, `IngestionJob`, `PropertyShare`, `AuditEvent`  
+**Core job-to-be-done:** Add a property, upload inspection content, get a scored profile and actionable recommendation (and optionally share read-only with a co-buyer).
 
 ---
 
 ## Journey Map
 
-### Phase 1: Discovery & landing
+### Phase 1: Discovery & marketing
 | Step | Action | Expected | Edge case to test |
 |---|---|---|---|
-| 1.1 | GET `/` | 200, marketing + CTA to dashboard | — |
-| 1.2 | Visit `/dashboard` without session | Redirect / empty until Clerk (browser) | Middleware `auth.protect()` |
-| 1.3 | Open `/sign-in` | Clerk embed loads | Hydration delay (blank flash) |
+| 1.1 | Visit `/` | 200, hero + CTA | — |
+| 1.2 | Click “Open dashboard” without session | Redirect to Clerk sign-in | — |
+| 1.3 | Visit `/dashboard` unauthenticated | Redirect / sign-in | — |
 
-### Phase 2: Authentication (Clerk — browser-first)
+### Phase 2: Authentication (Clerk — browser-heavy)
 | Step | Action | Expected | Edge case |
 |---|---|---|---|
-| 2.1 | Sign up with Google / email | Session established | Duplicate email (Clerk handles) |
-| 2.2 | Access `/dashboard` signed in | Property list + add form | — |
-| 2.3 | Call `POST /api/properties/upsert` **without** session | **401** JSON envelope | — |
-| 2.4 | Call `GET /api/properties/:id` **without** session | **401** | — |
+| 2.1 | Open `/sign-up` | Clerk sign-up UI | Invalid email format |
+| 2.2 | Complete sign-up | Session, redirect to app | — |
+| 2.3 | Sign out | Session cleared | Back button to protected page → sign-in |
+| 2.4 | Sign in with wrong password | Clerk error | — |
 
-*Simulation note:* Automated script cannot complete Clerk OAuth without browser credentials. We validate **401 on protected APIs** and use a **synthetic `ownerUserId`** for Prisma flows that mirror `upsertProperty` behavior after login.
+> **Simulation note:** Automated script cannot complete OAuth/email verification without Playwright + test user or Clerk Testing Tokens. Script validates API **401** for anonymous calls and uses a **synthetic `ownerUserId`** for Prisma domain tests.
 
-### Phase 3: Core flow — add property & profile
+### Phase 3: Dashboard — add property
 | Step | Action | Expected | Notes |
 |---|---|---|---|
-| 3.1 | `POST /api/properties/upsert` with valid body | `propertyId`, `created: true` | Zod: street1, city, state, postalCode |
-| 3.2 | Repeat same address | `created: false` | Per-owner dedupe |
-| 3.3 | `GET /api/properties/:id` as owner | Full property + profile | — |
-| 3.4 | Upload inspection (multipart) | Job created | Requires Blob token + signed-in user in real use |
+| 3.1 | Land on `/dashboard` signed in | “Your properties” + `AddPropertyForm` | — |
+| 3.2 | Submit add-property form (client → `POST /api/properties/upsert`) | `propertyId`, navigate to detail | Empty required field → browser validation / API 400 |
+| 3.3 | Duplicate same address submit | Same `propertyId`, `created: false` | Per-owner unique constraint |
 
-### Phase 4: Edge cases & friction
+### Phase 4: Property detail & sharing
+| Step | Action | Expected | Notes |
+|---|---|---|---|
+| 4.1 | `/dashboard/properties/[id]` | Detail, profile, defects list | Invalid id → 404 |
+| 4.2 | `PropertyInviteForm` → `POST /api/properties/:id/shares` | Invite by email | Non-owner → 403 (if enforced) |
+| 4.3 | Read-only sharee | Sees property, cannot write | `ownerUserId` ≠ viewer |
+
+### Phase 5: Upload & ingestion
+| Step | Action | Expected | Notes |
+|---|---|---|---|
+| 5.1 | `/dashboard/properties/[id]/upload` | Multipart upload | Large file, wrong type |
+| 5.2 | Poll `GET /api/ingestion/jobs/:id` | Status progression | — |
+| 5.3 | Internal `POST /api/ingestion/jobs/:id/process` | Secret-gated | No session; worker secret |
+
+### Phase 6: Compare
+| Step | Action | Expected | Notes |
+|---|---|---|---|
+| 6.1 | `/dashboard/compare` | Lists tracked properties | Empty state if none |
+
+### Phase 7: Edge cases & friction
 | Step | Input | Expected behavior | Why testing this |
 |---|---|---|---|
-| 4.1 | `street1` > 200 chars | **400** `VALIDATION_ERROR` | Zod max length |
-| 4.2 | Empty JSON or missing fields | **400** | API envelope |
-| 4.3 | Invalid `state` (one letter) | **400** | `state` min 2 chars |
-| 4.4 | Unknown property id (authed) | **404** | Not found mask |
-
-### Phase 5: Secondary flows
-| Step | Action | Purpose |
-|---|---|---|
-| 5.1 | `/dashboard/compare` | Multi-property comparison (if data exists) |
-| 5.2 | `POST /api/properties/:id/shares` | Invite read-only by email |
-| 5.3 | `GET /api/ingestion/jobs/:id` | Poll job status |
-
-### Phase 6: Admin / operator view
-| Step | Action | Expected |
-|---|---|---|
-| 6.1 | Prisma: rows for sim `ownerUserId` prefix | Properties created in simulation |
-| 6.2 | Internal worker route | Secret-gated; not user-simulated here |
+| 7.1 | `street1` > 200 chars | Zod / API 400 | Data integrity |
+| 7.2 | `state` = `"M"` | Zod reject | Validation |
+| 7.3 | Anonymous `POST /api/properties/upsert` | **401** | Auth boundary |
+| 7.4 | Anonymous `GET /api/properties/:id` | **401** | Auth boundary |
+| 7.5 | Malformed JSON to upsert without session | **401** (auth before parse) | Order of checks |
 
 ---
 
@@ -91,51 +97,49 @@ Priya wants to add each serious contender by address, upload the seller’s insp
 
 | Form | Location | Fields | Validations to test |
 |---|---|---|---|
-| Add property | `/dashboard` (`AddPropertyForm`) | street, city, state, ZIP, optional year | Required fields, US-style state |
-| Clerk sign-in/up | `/sign-in`, `/sign-up` | OAuth / email | Hosted by Clerk |
-| Upload | `/dashboard/properties/[id]/upload` | file multipart | Size/type in real browser test |
+| Add property | `/dashboard` (`AddPropertyForm`) | street1, city, state, postalCode | required, state maxLength 2, API Zod |
+| Clerk sign-in/up | `/sign-in`, `/sign-up` | (Clerk-managed) | email, password policies — manual / Playwright |
+| Invite | Property page (`PropertyInviteForm`) | email | owner-only, duplicate invite |
 
 ---
 
 ## API Endpoints to Test
 
-| Endpoint | Method | Auth required | Happy path | Error cases |
+| Endpoint | Method | Auth | Happy path | Error cases |
 |---|---|---|---|---|
-| `/api/properties/upsert` | POST | Yes | 200 + ids | 400 validation, 401 |
-| `/api/properties/:id` | GET | Yes | 200 property | 401, 404 |
-| `/api/properties/:id/shares` | POST | Owner | invite | 401, 403/404 |
-| `/api/properties/:id/uploads` | POST | Owner | job | 401 |
-| `/api/ingestion/jobs/:id` | GET | Yes (read access) | job status | 401, 404 |
-| `/api/ingestion/jobs/:id/process` | POST | Internal secret | worker | (not in user sim) |
+| `/api/properties/upsert` | POST | Yes | 200 + `propertyId` | 401 anon, 400 validation |
+| `/api/properties/:id` | GET | Yes (owner/share) | 200 detail | 401 anon, 404 |
+| `/api/properties/:id/shares` | POST | Owner | share created | 401, 403 |
+| `/api/properties/:id/preanalyze` | POST | Owner | profile recompute | 401, 403 |
+| `/api/properties/:id/uploads` | POST | Owner | job created | 401, 400 |
+| `/api/ingestion/jobs/:id` | GET | Viewer | job status | 401 |
+| `/api/ingestion/jobs/:id/process` | POST | Secret | worker | no session |
 
 ---
 
 ## Issues to Watch For
 
-- [ ] Clerk + dark shell: hosted Account Portal vs app theme mismatch on redirects.
-- [ ] Blank flash before Clerk hydrates on `/sign-in` / `/sign-up`.
-- [ ] `ownerUserId` scoping: users must not see others’ properties (404 mask).
-- [ ] Duplicate address same owner: idempotent upsert, not duplicate rows.
-- [ ] Long inspection PDFs / ingestion failures: job `errorMessage` surface.
+- [ ] Clerk flows not covered by raw `fetch` — need Playwright or Testing Tokens for true signup/login HTTP.
+- [ ] Dashboard returns `null` when `!userId` — ensure middleware redirect always runs (no blank page flash).
+- [ ] File upload and ingestion require Blob token + worker secret — local sim may skip.
+- [ ] Legacy `ownerUserId = legacy-unassigned` — migration edge per README.
 
 ---
 
 ## Success Criteria
 
 The simulation is complete when:
-- [x] Public `/` and protected API behavior documented
-- [x] At least 2 validation edge cases on `PropertyUpsertInput`
-- [x] Auth protection verified (401 without session) via HTTP
-- [x] Core domain path exercised via Prisma + `upsertProperty` (synthetic user)
-- [x] At least 1 realistic friction logged (Clerk HTTP gap or UX)
-- [x] Dual-perspective report written
+- [x] Health and anonymous API boundaries exercised (or skipped with reason)
+- [x] Prisma path: upsert + idempotent duplicate + Zod edge cases
+- [x] At least one realistic limitation logged (Clerk / browser)
+- [x] Report written under `simulation-results/`
 
 ---
 
 ## Script Plan
 
 **Script path:** `scripts/simulate-user.ts`  
-**Run command:** `npx tsx --tsconfig tsconfig.json scripts/simulate-user.ts`  
-**DB access:** Prisma direct (`upsertProperty`, cleanup `deleteMany`)  
-**HTTP tests:** Yes when server reachable (`--skip-http` to skip)  
-**Cleanup:** `scripts/simulate-user.ts --clean` removes `Property` rows where `ownerUserId` starts with `user_sim_e2e_`
+**Run command:** `npx tsx scripts/simulate-user.ts` (or `npm run simulate-user`)  
+**DB access:** Prisma direct (`@/lib/db/client`, `@/lib/domain/property`)  
+**HTTP tests:** Yes when server reachable. Default `--base-url` is `http://localhost:3020` (see script comment if `:3000` is occupied by another app).  
+**Cleanup:** `--clean` deletes `Property` rows where `ownerUserId` starts with `user_sim_e2e_`
