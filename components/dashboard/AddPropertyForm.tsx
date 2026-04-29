@@ -4,6 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/ui/Spinner";
 
+async function parseJsonSafely(res: Response): Promise<any | null> {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export default function AddPropertyForm() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -26,11 +36,16 @@ export default function AddPropertyForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error((await res.json()).error?.message ?? "Failed");
-      const json = await res.json();
+      const json = await parseJsonSafely(res);
+      if (!res.ok) {
+        throw new Error(json?.error?.message ?? "Could not add property right now. Please try again.");
+      }
+      if (!json?.propertyId) {
+        throw new Error("Property was created, but no property id was returned.");
+      }
       router.push(`/dashboard/properties/${json.propertyId}`);
     } catch (err) {
-      setError(String(err));
+      setError(err instanceof Error ? err.message : "Could not add property right now.");
       setBusy(false);
     }
   }
@@ -45,11 +60,11 @@ export default function AddPropertyForm() {
       <input name="state" required maxLength={2} placeholder="MA" />
       <label>Postal code</label>
       <input name="postalCode" required placeholder="01890" />
-      <button className="btn btn-primary" type="submit" disabled={busy} aria-busy={busy}>
+      <button className="btn btn-primary" type="submit" disabled={busy}>
         {busy && <Spinner />}
         {busy ? "Adding…" : "Add property"}
       </button>
-      {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
+      {error && <p className="form-error">{error}</p>}
     </form>
   );
 }
