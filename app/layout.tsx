@@ -67,9 +67,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <a className="link" href="/dashboard/compare">
                   Compare
                 </a>
-                <a className="link" href="/dashboard">
-                  Get started
-                </a>
                 <NavAuth />
               </nav>
             </div>
