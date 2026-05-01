@@ -13,6 +13,8 @@ const schema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   OCR_MODEL: z.string().default("anthropic/claude-sonnet-4.5"),
+  /** Passed through to AI SDK `generateText` (provider transient failures / rate limits). */
+  LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(2),
   INTERNAL_JOB_SECRET: z.string().min(16, "INTERNAL_JOB_SECRET must be at least 16 characters"),
   CRON_SHARED_SECRET: z.string().min(16, "CRON_SHARED_SECRET must be at least 16 characters"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
