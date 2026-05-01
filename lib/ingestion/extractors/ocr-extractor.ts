@@ -1,22 +1,23 @@
-import { generateText } from "ai";
+import { gatewayGenerateText } from "@/lib/ai/gateway-generate-text";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logging/logger";
+import { OCR_EXTRACTION_USER_PROMPT } from "@/lib/ingestion/prompts/ocr-extraction-prompt";
 import { ExtractionError, type ExtractionResult } from "./types";
-
-const OCR_PROMPT =
-  "Extract all visible text from this property inspection report. Return plain text only, preserving section headings and line breaks. Do not summarize. Do not add commentary. If the document is blank or contains no readable text, return the single word NONE.";
 
 export async function extractViaOcr(
   buffer: Buffer,
   filename: string
 ): Promise<ExtractionResult> {
   try {
-    const result = await generateText({
+    const result = await gatewayGenerateText({
+      operation: "ocr-pdf-extract",
       model: env.OCR_MODEL,
+      maxRetries: env.LLM_MAX_RETRIES,
       messages: [
         {
           role: "user",
           content: [
-            { type: "text", text: OCR_PROMPT },
+            { type: "text", text: OCR_EXTRACTION_USER_PROMPT },
             {
               type: "file",
               data: new Uint8Array(buffer),
@@ -45,7 +46,7 @@ export async function extractViaOcr(
   } catch (err) {
     if (err instanceof ExtractionError) throw err;
     const rawMsg = err instanceof Error ? err.message : String(err);
-    console.error("[ocr-extract] failed:", rawMsg);
+    logger.error("ocr-extract-failed", { message: rawMsg.slice(0, 500) });
     // Fall through to the same SCANNED_PDF error code so the user experience
     // doesn't fork on infra failures. Operators see details in logs.
     throw new ExtractionError(
