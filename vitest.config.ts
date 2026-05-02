@@ -8,8 +8,10 @@ export default defineConfig({
     globals: false,
     env: {
       AUTH_SECRET: "test-secret-min-16-chars",
-      EMAIL_SERVER: "smtp://test:test@localhost:2525",
+      RESEND_API_KEY: "re_test",
       EMAIL_FROM: "test@example.com",
+      INTERNAL_JOB_SECRET: "test-internal-job-secret-min-16",
+      CRON_SHARED_SECRET: "test-cron-shared-secret-min-16",
     },
   },
   resolve: {

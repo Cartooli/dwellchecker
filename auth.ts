@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import Nodemailer from "next-auth/providers/nodemailer";
+import Resend from "next-auth/providers/resend";
 import { prisma } from "@/lib/db/client";
 import { linkPendingSharesForUser } from "@/lib/auth/link-pending-shares";
 import { authConfig } from "./auth.config";
@@ -10,8 +10,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
   providers: [
-    Nodemailer({
-      server: process.env.EMAIL_SERVER || "smtp://placeholder:placeholder@localhost:25",
+    Resend({
+      apiKey: process.env.AUTH_RESEND_KEY || process.env.RESEND_API_KEY,
       from: process.env.EMAIL_FROM || "noreply@example.com",
     }),
   ],

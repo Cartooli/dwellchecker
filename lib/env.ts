@@ -3,7 +3,8 @@ import { z } from "zod";
 const schema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   AUTH_SECRET: z.string().min(1),
-  EMAIL_SERVER: z.string().min(1),
+  RESEND_API_KEY: z.string().optional(),
+  AUTH_RESEND_KEY: z.string().optional(),
   EMAIL_FROM: z.string().min(1),
   DATABASE_URL: z.string().optional(),
   DIRECT_URL: z.string().optional(),

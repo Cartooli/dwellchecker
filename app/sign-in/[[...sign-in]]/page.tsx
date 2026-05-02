@@ -18,7 +18,7 @@ export default async function SignInPage({
         <form
           action={async (formData) => {
             "use server";
-            await signIn("nodemailer", {
+            await signIn("resend", {
               email: formData.get("email"),
               redirectTo: callbackUrl,
             });
