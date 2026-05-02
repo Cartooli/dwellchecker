@@ -132,6 +132,12 @@ textarea:focus-visible,
 }
 .nav a.link:hover,
 .nav a.link:active { color: var(--text); }
+@media (max-width: 480px) {
+  .nav-inner { padding: 10px 0; gap: 8px; flex-wrap: nowrap; }
+  .brand { font-size: 16px; padding: 6px 4px 6px 2px; }
+  .brand > span:not(.brand-mark) { display: none; }
+  .nav a.link { padding: 8px 8px; font-size: 13px; }
+}
 
 .hero {
   padding: 56px 0 48px;
