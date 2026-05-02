@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import NavAuth from "@/components/layout/NavAuth";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://condition.homes";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.condition.homes";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
       "Buyer-first property condition intelligence. Decode inspection reports into proceed, negotiate, or walk.",
     images: ["/opengraph-image"],
   },
-  alternates: { canonical: "https://condition.homes" },
+  alternates: { canonical: APP_URL },
   robots: { index: true, follow: true },
 };
 
