@@ -11,8 +11,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "database" },
   providers: [
     Nodemailer({
-      server: process.env.EMAIL_SERVER,
-      from: process.env.EMAIL_FROM,
+      server: process.env.EMAIL_SERVER || "smtp://placeholder:placeholder@localhost:25",
+      from: process.env.EMAIL_FROM || "noreply@example.com",
     }),
   ],
   callbacks: {
