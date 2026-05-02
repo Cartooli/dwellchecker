@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db/client";
 import { normalizeEmail } from "@/lib/auth/normalize-email";
 
-/** Links pending invites (same email, no invitee yet) to the signed-in Clerk user id. */
-export async function linkPendingSharesForUser(clerkUserId: string, email: string): Promise<void> {
+/** Links pending invites (same email, no invitee yet) to the signed-in user id. */
+export async function linkPendingSharesForUser(userId: string, email: string): Promise<void> {
   const invitedEmail = normalizeEmail(email);
   await prisma.propertyShare.updateMany({
     where: {
@@ -10,6 +10,6 @@ export async function linkPendingSharesForUser(clerkUserId: string, email: strin
       inviteeUserId: null,
       revokedAt: null,
     },
-    data: { inviteeUserId: clerkUserId },
+    data: { inviteeUserId: userId },
   });
 }

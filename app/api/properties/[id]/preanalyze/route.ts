@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth/session";
 import { NextResponse } from "next/server";
 import { recomputePropertyConditionProfile } from "@/lib/scoring/recompute-profile";
 import { userCanWriteProperty } from "@/lib/auth/property-access";

@@ -1,22 +1,7 @@
 "use client";
 
-import { ClerkProvider } from "@clerk/nextjs";
-
-const clerkLocalization = {
-  signIn: {
-    start: {
-      title: "Sign in to dwellchecker",
-    },
-  },
-  signUp: {
-    start: {
-      title: "Create your dwellchecker account",
-    },
-  },
-} as const;
+import { SessionProvider } from "next-auth/react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <ClerkProvider localization={clerkLocalization}>{children}</ClerkProvider>
-  );
+  return <SessionProvider>{children}</SessionProvider>;
 }

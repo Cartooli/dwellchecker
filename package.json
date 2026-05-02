@@ -15,8 +15,10 @@
     "simulate-user": "tsx scripts/simulate-user.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.39.1",
+    "@auth/prisma-adapter": "^2.7.0",
     "@prisma/client": "^6.1.0",
+    "next-auth": "5.0.0-beta.25",
+    "nodemailer": "^6.9.16",
     "@vercel/blob": "^2.3.3",
     "ai": "^6.0.151",
     "next": "^15.1.0",
@@ -27,6 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "prisma": "^6.1.0",

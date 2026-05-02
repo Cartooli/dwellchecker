@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
 import UploadForm from "@/components/upload/UploadForm";
 import { userCanWriteProperty } from "@/lib/auth/property-access";

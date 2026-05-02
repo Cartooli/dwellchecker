@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth/session";
 import { getPropertyDetailForViewer } from "@/lib/domain/property";
 import { userCanWriteProperty } from "@/lib/auth/property-access";
 import { logger } from "@/lib/logging/logger";

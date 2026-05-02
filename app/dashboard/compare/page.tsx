@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth/session";
 import { listPropertiesForViewer } from "@/lib/domain/property";
 import { logger } from "@/lib/logging/logger";
 

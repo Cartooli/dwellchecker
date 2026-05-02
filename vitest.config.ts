@@ -7,8 +7,9 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     globals: false,
     env: {
-      CLERK_SECRET_KEY: "sk_test_vitest",
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_vitest",
+      AUTH_SECRET: "test-secret-min-16-chars",
+      EMAIL_SERVER: "smtp://test:test@localhost:2525",
+      EMAIL_FROM: "test@example.com",
     },
   },
   resolve: {

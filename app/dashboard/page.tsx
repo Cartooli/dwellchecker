@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth/session";
 import Link from "next/link";
 import AddPropertyForm from "@/components/dashboard/AddPropertyForm";
 import { listPropertiesForViewer } from "@/lib/domain/property";

@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth/session";
 import { NextResponse } from "next/server";
 import { PropertyUpsertInput } from "@/types/api";
 import { upsertProperty } from "@/lib/domain/property";

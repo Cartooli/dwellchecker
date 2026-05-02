@@ -1,19 +1,21 @@
 "use client";
 
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 
 export default function NavAuth() {
+  const { data: session, status } = useSession();
+  if (status === "loading") return null;
+  if (!session?.user) {
+    return (
+      <Link className="link" href="/sign-in">
+        Sign in
+      </Link>
+    );
+  }
   return (
-    <>
-      <SignedOut>
-        <Link className="link" href="/sign-in">
-          Sign in
-        </Link>
-      </SignedOut>
-      <SignedIn>
-        <UserButton afterSignOutUrl="/" />
-      </SignedIn>
-    </>
+    <button className="link" type="button" onClick={() => signOut({ callbackUrl: "/" })}>
+      Sign out
+    </button>
   );
 }
