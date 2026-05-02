@@ -1,23 +1,7 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
 
-const PUBLIC_PATHS = [
-  /^\/$/,
-  /^\/sign-in(\/.*)?$/,
-  /^\/sign-up(\/.*)?$/,
-  /^\/api\/auth(\/.*)?$/,
-  /^\/api\/ingestion\/jobs\/[^/]+\/process$/,
-];
-
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-  if (PUBLIC_PATHS.some((re) => re.test(pathname))) return;
-  if (!req.auth) {
-    const url = new URL("/sign-in", req.nextUrl.origin);
-    url.searchParams.set("callbackUrl", req.nextUrl.pathname);
-    return NextResponse.redirect(url);
-  }
-});
+export default NextAuth(authConfig).auth;
 
 export const config = {
   matcher: [
