@@ -4,6 +4,7 @@ export const authConfig = {
   pages: {
     signIn: "/sign-in",
     verifyRequest: "/sign-in?check-email=1",
+    error: "/sign-in",
   },
   providers: [],
   callbacks: {
