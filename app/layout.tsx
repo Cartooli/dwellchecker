@@ -3,7 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 import NavAuth from "@/components/layout/NavAuth";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.condition.homes";
+const RAW_APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.condition.homes";
+const APP_URL = RAW_APP_URL.replace("https://condition.homes", "https://www.condition.homes");
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
