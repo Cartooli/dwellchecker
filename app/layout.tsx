@@ -1,7 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Manrope, Newsreader } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import NavAuth from "@/components/layout/NavAuth";
+
+const bodyFont = Manrope({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const displayFont = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 const RAW_APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.condition.homes";
 const APP_URL = RAW_APP_URL.replace("https://condition.homes", "https://www.condition.homes");
@@ -52,16 +65,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${bodyFont.variable} ${displayFont.variable}`}>
       <body>
         <Providers>
           <header className="nav">
             <div className="container nav-inner">
               <a href="/" className="brand">
-                <span className="brand-mark">D</span>
-                <span>dwellchecker</span>
+                <span aria-hidden="true" className="brand-mark">D</span>
+                <span className="brand-word">Dwellchecker</span>
               </a>
-              <nav style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <nav className="nav-links">
                 <a className="link" href="/dashboard">
                   Dashboard
                 </a>
